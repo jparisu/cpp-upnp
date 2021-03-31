@@ -129,12 +129,12 @@ const option::Descriptor usage[] = {
         "-p <num>\t  --physical-port=<num> \tHost port to listen packets from the router."},
     { TIME, 0, "t", "time",                     Arg::Numeric,
         "-t <num> \t--time=<num> \tTime in seconds until the port is closed again (Default 60)."},
-    { DESCRIPTION, 0, "d", "description",                     Arg::Numeric,
+    { DESCRIPTION, 0, "d", "description",       Arg::String,
         "-d <str> \t--description=<str> \tDescription for the port mapping (Default 'test')."},
     { 0, 0, 0, 0, 0, 0 }
 };
 
-int add_port(int logic_port, int physic_port, int time, std::string desc)
+void add_port(int logic_port, int physic_port, int time, std::string desc)
 {
     net::io_context ctx;
 
@@ -161,18 +161,19 @@ int add_port(int logic_port, int physic_port, int time, std::string desc)
 
         for (auto& igd : igds)
         {
-            std::cout << "Adding port map for IGD: " << igd.friendly_name() << std::endl;
+            std::cout << "IGD: " << igd.friendly_name() << std::endl;
 
             auto address_response = igd.get_external_address(yield);
 
             if (address_response)
             {
-                std::cerr << "Error response for getting external address: " << address_response.error() << std::endl;
-                continue;
+                std::cout << "IGD " << igd.friendly_name() << " External address: "
+                    << address_response.value() << std::endl;
             }
             else
             {
-                std::cout << "IGD External address: " << address_response.value() << std::endl;
+                std::cerr << "Error response for getting external address: " << address_response.error() << std::endl;
+                continue;
             }
 
             auto port_response = igd.add_port_mapping(
@@ -185,16 +186,15 @@ int add_port(int logic_port, int physic_port, int time, std::string desc)
 
             if (port_response)
             {
-                std::cerr << "Error response for adding port mapping: " << port_response.error() << std::endl;
-                continue;
-            }
-            else
-            {
                 std::cout << "The External address: " << address_response.value() << ":" << logic_port
                     << " will be forwarded to this host port: " << physic_port
                     << " during " << time << " seconds" << std::endl;
             }
-
+            else
+            {
+                std::cerr << "Error response for adding port mapping: " << port_response.error() << std::endl;
+                continue;
+            }
         }
     });
 
