@@ -15,7 +15,7 @@
 ###############################################################################
 # Configuration
 ###############################################################################
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.13)
 
 set(FORCE_CXX "14" CACHE STRING "C++ standard fulfillment selection")
 

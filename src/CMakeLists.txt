@@ -15,7 +15,7 @@
 ###############################################################################
 # Configuration
 ###############################################################################
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 
 file(GLOB_RECURSE ALL_HEADERS
     ${PROJECT_SOURCE_DIR}/include/**/*.h
