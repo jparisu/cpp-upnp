@@ -83,7 +83,7 @@ void add_port_mapping( upnp::igd& igd
 {
     cerr << "Adding port mapping ext:" << ext_p << " int:" << int_p << "\n";
 
-    auto r = igd.add_port_mapping( upnp::igd::udp
+    auto r = igd.add_internal_port_mapping( upnp::igd::udp
                                  , ext_p
                                  , int_p
                                  , "test"

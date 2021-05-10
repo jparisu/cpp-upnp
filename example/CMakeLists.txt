@@ -7,10 +7,10 @@ if(NOT cppupnp_FOUND)
 endif()
 
 # Native example
-add_executable            (add-port-mapping ./add-port-mapping.cpp)
-target_compile_features   (add-port-mapping PRIVATE cxx_std_17)
-target_include_directories(add-port-mapping PRIVATE cppupnp)
-target_link_libraries     (add-port-mapping cppupnp)
+# add_executable            (add-port-mapping ./add-port-mapping.cpp)
+# target_compile_features   (add-port-mapping PRIVATE cxx_std_17)
+# target_include_directories(add-port-mapping PRIVATE cppupnp)
+# target_link_libraries     (add-port-mapping cppupnp)
 
 # jparisu example
 add_executable(port-forwarding ./main.cpp)

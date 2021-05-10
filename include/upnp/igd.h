@@ -94,6 +94,12 @@ public:
             soap_request
         >;
 
+        using add_internal_port_mapping = variant<
+            igd_host_parse_failed,
+            no_endpoint_to_igd,
+            soap_request
+        >;
+
         using get_external_address = variant<
             soap_request,
             invalid_xml_body,
@@ -148,6 +154,15 @@ public:
      */
     result<void, error::add_port_mapping>
     add_port_mapping( protocol
+                    , uint16_t external_port
+                    , uint16_t internal_port
+                    , net::ip::address ip
+                    , string_view description
+                    , std::chrono::seconds duration
+                    , net::yield_context yield) noexcept;
+
+    result<void, error::add_port_mapping>
+    add_internal_port_mapping( protocol
                     , uint16_t external_port
                     , uint16_t internal_port
                     , string_view description

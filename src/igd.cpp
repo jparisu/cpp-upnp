@@ -12,6 +12,9 @@
 #include "xml.h"
 #include "parse_device.h"
 #include <set>
+#include <iostream>
+
+#define SOAP_TIMEOUT 15
 
 namespace upnp {
 
@@ -32,7 +35,7 @@ igd::igd( std::string   uuid
 {}
 
 result<void, igd::error::add_port_mapping>
-igd::add_port_mapping( protocol proto
+igd::add_internal_port_mapping( protocol proto
                      , uint16_t external_port
                      , uint16_t internal_port
                      , string_view description
@@ -58,6 +61,38 @@ igd::add_port_mapping( protocol proto
             "<NewProtocol>"               << proto             << "</NewProtocol>"
             "<NewInternalPort>"           << internal_port     << "</NewInternalPort>"
             "<NewInternalClient>"         << local_ip          << "</NewInternalClient>"
+            "<NewPortMappingDescription>" << description       << "</NewPortMappingDescription>"
+            "<NewLeaseDuration>"          << duration.count()  << "</NewLeaseDuration>"
+            "</u:AddPortMapping>";
+
+    auto rs = soap_request("AddPortMapping", body.str(), yield);
+    if (!rs) return rs.error();
+
+    return success();
+}
+
+result<void, igd::error::add_port_mapping>
+igd::add_port_mapping( protocol proto
+                     , uint16_t external_port
+                     , uint16_t internal_port
+                     , net::ip::address ip
+                     , string_view description
+                     , std::chrono::seconds duration
+                     , net::yield_context yield) noexcept
+{
+    auto host_port = _url.host_and_port();
+    auto opt_remote_ep = str::consume_endpoint<net::ip::tcp>(host_port);
+    if (!opt_remote_ep)
+        return error::igd_host_parse_failed{_url};
+
+    std::stringstream body;
+    body << "<u:AddPortMapping xmlns:u=\""<< _urn <<"\">"
+            "<NewRemoteHost></NewRemoteHost>"
+            "<NewEnabled>1</NewEnabled>"
+            "<NewExternalPort>"           << external_port     << "</NewExternalPort>"
+            "<NewProtocol>"               << proto             << "</NewProtocol>"
+            "<NewInternalPort>"           << internal_port     << "</NewInternalPort>"
+            "<NewInternalClient>"         << ip          << "</NewInternalClient>"
             "<NewPortMappingDescription>" << description       << "</NewPortMappingDescription>"
             "<NewLeaseDuration>"          << duration.count()  << "</NewLeaseDuration>"
             "</u:AddPortMapping>";
@@ -265,12 +300,12 @@ igd::soap_request( string_view command
     rq.body() = std::move(body);
     rq.prepare_payload();
 
-    //std::cerr << rq;
+    std::cerr << "REQUEST " << rq << std::endl;
 
     error_code ec;
 
     beast::tcp_stream stream(_exec);
-    stream.expires_after(std::chrono::seconds(5));
+    stream.expires_after(std::chrono::seconds(SOAP_TIMEOUT));
 
     auto cancelled = _cancel.connect([&] { stream.close(); });
 
@@ -287,8 +322,11 @@ igd::soap_request( string_view command
     if (ec) return E{error::http_response{}};
 
     if (rs.result() != beast::http::status::ok) {
+        std::cerr << "RESPONSE ERROR " << rs << std::endl;
         return E{error::http_status{rs.result()}};
     }
+
+    std::cerr << "RESPONSE " << rs << std::endl;
 
     return std::move(rs);
 }
@@ -392,7 +430,7 @@ igd::query_root_device( net::executor exec
     if (!ep) return sys::errc::invalid_argument;
 
     beast::tcp_stream stream(exec);
-    stream.expires_after(std::chrono::seconds(5));
+    stream.expires_after(std::chrono::seconds(SOAP_TIMEOUT));
 
     stream.async_connect(*ep, yield[ec]);
     if (ec) return ec;

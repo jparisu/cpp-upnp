@@ -21,6 +21,7 @@
 #include <iostream>
 #include <boost/asio/ip/udp.hpp>
 #include <upnp/third_party/optionparser.h>
+#include <upnp/third_party/result.h>
 
 namespace net = upnp::net;
 
@@ -112,7 +113,8 @@ enum  optionIndex {
     LOGICAL_PORT,
     PHYSICAL_PORT,
     TIME,
-    DESCRIPTION
+    DESCRIPTION,
+    CLIENT
 };
 
 /*
@@ -131,10 +133,12 @@ const option::Descriptor usage[] = {
         "-t <num> \t--time=<num> \tTime in seconds until the port is closed again (Default 60)."},
     { DESCRIPTION, 0, "d", "description",       Arg::String,
         "-d <str> \t--description=<str> \tDescription for the port mapping (Default 'test')."},
+    { CLIENT, 0, "c", "client",       Arg::String,
+        "-c <str> \t--client=<str> \tIp of the client to open port (Default <own ip>)."},
     { 0, 0, 0, 0, 0, 0 }
 };
 
-void add_port(int logic_port, int physic_port, int time, std::string desc)
+void add_port(int logic_port, int physic_port, int time, std::string desc, std::string ip)
 {
     net::io_context ctx;
 
@@ -176,24 +180,52 @@ void add_port(int logic_port, int physic_port, int time, std::string desc)
                 continue;
             }
 
-            auto port_response = igd.add_port_mapping(
-                upnp::igd::udp,
-                physic_port,
-                logic_port,
-                desc,
-                std::chrono::seconds(time),
-                yield);
+            bool success = false;
 
-            if (port_response)
+            if (ip == "")
             {
-                std::cout << "The External address: " << address_response.value() << ":" << logic_port
-                    << " will be forwarded to this host port: " << physic_port
-                    << " during " << time << " seconds" << std::endl;
+                auto port_response = igd.add_internal_port_mapping(
+                    upnp::igd::tcp,
+                    physic_port,
+                    logic_port,
+                    desc,
+                    std::chrono::seconds(time),
+                    yield);
+
+                if (port_response)
+                {
+                    std::cout << "The External address: " << address_response.value() << ":" << logic_port
+                        << " will be forwarded to this host port: " << physic_port
+                        << " during " << time << " seconds" << std::endl;
+                }
+                else
+                {
+                    std::cerr << "Error response for adding port mapping: " << port_response.error() << std::endl;
+                    continue;
+                }
             }
             else
             {
-                std::cerr << "Error response for adding port mapping: " << port_response.error() << std::endl;
-                continue;
+                auto port_response = igd.add_port_mapping(
+                    upnp::igd::tcp,
+                    physic_port,
+                    logic_port,
+                    net::ip::address::from_string(ip),
+                    desc,
+                    std::chrono::seconds(time),
+                    yield);
+
+                if (port_response)
+                {
+                    std::cout << "The External address: " << address_response.value() << ":" << logic_port
+                        << " will be forwarded to address: " << ip << ":" << physic_port
+                        << " during " << time << " seconds" << std::endl;
+                }
+                else
+                {
+                    std::cerr << "Error response for adding port mapping: " << port_response.error() << std::endl;
+                    continue;
+                }
             }
         }
     });
@@ -224,8 +256,9 @@ int main(int argc, char** argv)
     // Get executable arguments
     int logic_port = -1;
     int physic_port = -1;
-    int time = 0;
+    int time = 60;
     std::string desc("test");
+    std::string ip("");
 
     // 2 required arguments
     if (argc > 2)
@@ -276,6 +309,10 @@ int main(int argc, char** argv)
                     desc = opt.arg;
                     break;
 
+                case CLIENT:
+                    ip = opt.arg;
+                    break;
+
                 case UNKNOWN_OPT:
                     option::printUsage(fwrite, stdout, usage, columns);
                     return 1;
@@ -297,7 +334,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    add_port(logic_port, physic_port, time, desc);
+    add_port(logic_port, physic_port, time, desc, ip);
 
     return 0;
 }
