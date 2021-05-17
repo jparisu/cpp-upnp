@@ -159,7 +159,8 @@ public:
                     , net::ip::address ip
                     , string_view description
                     , std::chrono::seconds duration
-                    , net::yield_context yield) noexcept;
+                    , net::yield_context yield
+                    , bool debug=false) noexcept;
 
     result<void, error::add_port_mapping>
     add_internal_port_mapping( protocol
@@ -167,7 +168,8 @@ public:
                     , uint16_t internal_port
                     , string_view description
                     , std::chrono::seconds duration
-                    , net::yield_context yield) noexcept;
+                    , net::yield_context yield
+                    , bool debug=false) noexcept;
 
     /*
      * Section 2.4.18 from (IGD:1)
@@ -177,7 +179,7 @@ public:
      * http://upnp.org/specs/gw/UPnP-gw-WANIPConnection-v2-Service.pdf
      */
     result<net::ip::address , error::get_external_address>
-    get_external_address(net::yield_context yield) noexcept;
+    get_external_address(net::yield_context yield, bool debug=false) noexcept;
 
     struct map_entry {
         // TODO: There are others
@@ -248,7 +250,8 @@ private:
     result<soap_response, error::soap_request>
     soap_request( string_view command
                 , string_view message
-                , net::yield_context) noexcept;
+                , net::yield_context,
+                bool debug=false) noexcept;
 
 private:
     std::string   _uuid;

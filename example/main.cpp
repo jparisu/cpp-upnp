@@ -114,7 +114,8 @@ enum  optionIndex {
     PHYSICAL_PORT,
     TIME,
     DESCRIPTION,
-    CLIENT
+    CLIENT,
+    DEBUG
 };
 
 /*
@@ -135,10 +136,12 @@ const option::Descriptor usage[] = {
         "-d <str> \t--description=<str> \tDescription for the port mapping (Default 'test')."},
     { CLIENT, 0, "c", "client",       Arg::String,
         "-c <str> \t--client=<str> \tIp of the client to open port (Default <own ip>)."},
+    { DEBUG, 0, "g", "debug",       Arg::None,
+        "-g \t--debug \tActivate debug option."},
     { 0, 0, 0, 0, 0, 0 }
 };
 
-void add_port(int logic_port, int physic_port, int time, std::string desc, std::string ip)
+void add_port(int logic_port, int physic_port, int time, std::string desc, std::string ip, bool debug)
 {
     net::io_context ctx;
 
@@ -167,7 +170,7 @@ void add_port(int logic_port, int physic_port, int time, std::string desc, std::
         {
             std::cout << "IGD: " << igd.friendly_name() << std::endl;
 
-            auto address_response = igd.get_external_address(yield);
+            auto address_response = igd.get_external_address(yield, debug);
 
             if (address_response)
             {
@@ -190,7 +193,8 @@ void add_port(int logic_port, int physic_port, int time, std::string desc, std::
                     logic_port,
                     desc,
                     std::chrono::seconds(time),
-                    yield);
+                    yield,
+                    debug);
 
                 if (port_response)
                 {
@@ -213,7 +217,8 @@ void add_port(int logic_port, int physic_port, int time, std::string desc, std::
                     net::ip::address::from_string(ip),
                     desc,
                     std::chrono::seconds(time),
-                    yield);
+                    yield,
+                    debug);
 
                 if (port_response)
                 {
@@ -259,6 +264,7 @@ int main(int argc, char** argv)
     int time = 60;
     std::string desc("test");
     std::string ip("");
+    bool debug = false;
 
     // 2 required arguments
     if (argc > 2)
@@ -313,6 +319,10 @@ int main(int argc, char** argv)
                     ip = opt.arg;
                     break;
 
+                case DEBUG:
+                    debug = true;
+                    break;
+
                 case UNKNOWN_OPT:
                     option::printUsage(fwrite, stdout, usage, columns);
                     return 1;
@@ -334,7 +344,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    add_port(logic_port, physic_port, time, desc, ip);
+    add_port(logic_port, physic_port, time, desc, ip, debug);
 
     return 0;
 }

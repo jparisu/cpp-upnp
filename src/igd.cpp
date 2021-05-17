@@ -40,7 +40,8 @@ igd::add_internal_port_mapping( protocol proto
                      , uint16_t internal_port
                      , string_view description
                      , std::chrono::seconds duration
-                     , net::yield_context yield) noexcept
+                     , net::yield_context yield
+                     , bool debug) noexcept
 {
     auto host_port = _url.host_and_port();
     auto opt_remote_ep = str::consume_endpoint<net::ip::tcp>(host_port);
@@ -65,7 +66,7 @@ igd::add_internal_port_mapping( protocol proto
             "<NewLeaseDuration>"          << duration.count()  << "</NewLeaseDuration>"
             "</u:AddPortMapping>";
 
-    auto rs = soap_request("AddPortMapping", body.str(), yield);
+    auto rs = soap_request("AddPortMapping", body.str(), yield, debug);
     if (!rs) return rs.error();
 
     return success();
@@ -78,7 +79,8 @@ igd::add_port_mapping( protocol proto
                      , net::ip::address ip
                      , string_view description
                      , std::chrono::seconds duration
-                     , net::yield_context yield) noexcept
+                     , net::yield_context yield
+                     , bool debug) noexcept
 {
     auto host_port = _url.host_and_port();
     auto opt_remote_ep = str::consume_endpoint<net::ip::tcp>(host_port);
@@ -97,18 +99,18 @@ igd::add_port_mapping( protocol proto
             "<NewLeaseDuration>"          << duration.count()  << "</NewLeaseDuration>"
             "</u:AddPortMapping>";
 
-    auto rs = soap_request("AddPortMapping", body.str(), yield);
+    auto rs = soap_request("AddPortMapping", body.str(), yield, debug);
     if (!rs) return rs.error();
 
     return success();
 }
 
 result<net::ip::address, igd::error::get_external_address>
-igd::get_external_address(net::yield_context yield) noexcept
+igd::get_external_address(net::yield_context yield, bool debug) noexcept
 {
     std::string body = "<u:GetExternalIPAddress xmlns:u=\"" + _urn + "\"/>";
 
-    auto rs = soap_request("GetExternalIPAddress", body, yield);
+    auto rs = soap_request("GetExternalIPAddress", body, yield, debug);
     if (!rs) return rs.error();
 
     auto opt_xml = xml::parse(rs.value().body());
@@ -271,7 +273,8 @@ igd::delete_port_mapping( protocol proto
 result<igd::soap_response, igd::error::soap_request>
 igd::soap_request( string_view command
                  , string_view message
-                 , net::yield_context yield) noexcept
+                 , net::yield_context yield
+                 , bool debug) noexcept
 {
     namespace http = beast::http;
     using E = error::soap_request;
@@ -300,7 +303,10 @@ igd::soap_request( string_view command
     rq.body() = std::move(body);
     rq.prepare_payload();
 
-    std::cerr << "REQUEST " << rq << std::endl;
+    if (debug)
+    {
+        std::cerr << "REQUEST " << rq << std::endl;
+    }
 
     error_code ec;
 
@@ -322,11 +328,17 @@ igd::soap_request( string_view command
     if (ec) return E{error::http_response{}};
 
     if (rs.result() != beast::http::status::ok) {
-        std::cerr << "RESPONSE ERROR " << rs << std::endl;
+        if (debug)
+        {
+            std::cerr << "RESPONSE ERROR " << rs << std::endl;
+        }
         return E{error::http_status{rs.result()}};
     }
 
-    std::cerr << "RESPONSE " << rs << std::endl;
+    if (debug)
+    {
+        std::cerr << "RESPONSE " << rs << std::endl;
+    }
 
     return std::move(rs);
 }
